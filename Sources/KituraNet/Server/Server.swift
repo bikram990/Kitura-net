@@ -94,3 +94,7 @@ public protocol Server {
     @discardableResult
     func clientConnectionFailed(callback: @escaping (Swift.Error) -> Void) -> Self
 }
+
+public protocol NetServiceServer: Server {
+    init(withName name:String, type:String, domain:String)
+}

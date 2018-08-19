@@ -93,6 +93,10 @@ public class HTTP {
         return HTTPServer()
     }
     
+    public static func createNetServiceServer(withName name:String, type:String, domain:String) -> HTTPServer {
+        return HTTPServer.init(withName: name, type: type, domain: domain)
+    }
+    
     /**
     Create a new `ClientRequest` using URL.
     

@@ -56,7 +56,7 @@ public class HTTPServerRequest: ServerRequest {
     public private(set) var httpStatusCode: HTTPStatusCode = .unknown
     
     /// Client connection socket
-    private let socket: Socket
+    private let socket: Socketable
     
     /**
      Server IP address pulled from socket.
@@ -118,7 +118,7 @@ public class HTTPServerRequest: ServerRequest {
      public var signature: Socket.Signature? { return socket.signature }
      ````
      */
-    public var signature: Socket.Signature? { return socket.signature }
+    public var signature: SocketSignature? { return socket.signature }
     
     private var _url: URL?
     
@@ -236,7 +236,7 @@ public class HTTPServerRequest: ServerRequest {
     /// - Parameter httpParser: The `HTTPParser` object used to parse the incoming request
     ///
     /// - Returns: an HTTPServerRequest instance
-    init (socket: Socket, httpParser: HTTPParser?) {
+    init (socket: Socketable, httpParser: HTTPParser?) {
         self.socket = socket
         self.httpParser = httpParser
     }

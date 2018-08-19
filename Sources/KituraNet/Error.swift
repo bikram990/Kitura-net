@@ -23,6 +23,7 @@ public enum Error: Swift.Error {
     /// - Parameter errCode: The errno of the error
     /// - Parameter reason: A textual description of the error (from strerror)
     case incomingSocketManagerFailure(errorCode: Int32, reason: String)
+    case serverSocketFailure(errorCode: Int32, reason: String)
 }
 
 
@@ -32,6 +33,8 @@ extension Error: CustomStringConvertible {
         switch self {
             case .incomingSocketManagerFailure(let errorCode, let reason):
                 return "Failed to handle incoming socket. Error code=\(errorCode). Reason=\(reason)"
+            case .serverSocketFailure(let errorCode, let reason):
+                return "Server socket failure. Error code=\(errorCode). Reason=\(reason)"
         }
     }
 }

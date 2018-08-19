@@ -47,7 +47,7 @@ The FastCGIServerRequest class implements the `ServerRequest` protocol for incom
 public class FastCGIServerRequest : ServerRequest {
 
     /// Socket for the request
-    private let socket: Socket
+    private let socket: Socketable
 
     /**
      The IP address of the client
@@ -233,7 +233,7 @@ public class FastCGIServerRequest : ServerRequest {
     /// Initialize a `FastCGIServerRequest` instance
     ///
     /// - Parameter socket: The socket to read the request from.
-    required public init (socket: Socket) {
+    required public init (socket: Socketable) {
         self.socket = socket
     }
 

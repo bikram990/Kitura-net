@@ -58,7 +58,7 @@ The FastCGIServerRequest class implements the `ServerResponse` protocol for inco
 public class FastCGIServerResponse : ServerResponse {
 
     /// Socket for the ServerResponse
-    private var socket: Socket?
+    private var socket: Socketable?
 
     /// Size of buffers (64 * 1024 is the max size for a FastCGI outbound record)
     /// Which also gives a bit more internal buffer room.
@@ -110,7 +110,7 @@ public class FastCGIServerResponse : ServerResponse {
     /// - Parameter socket: The socket to write the ersponse to.
     /// - Parameter request: The `FastCGIServerRequest` object for the request that
     ///                     `FastCGIServerResponse` will respond to.
-    init(socket: Socket, request: FastCGIServerRequest) {
+    init(socket: Socketable, request: FastCGIServerRequest) {
         self.socket = socket
         self.serverRequest = request
         self.headers["Date"] = [SPIUtils.httpDate()]

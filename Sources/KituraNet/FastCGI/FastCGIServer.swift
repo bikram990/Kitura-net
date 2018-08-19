@@ -77,7 +77,7 @@ public class FastCGIServer: Server {
     }()
 
     /// TCP socket used for listening for new connections
-    private var listenSocket: Socket?
+    private var listenSocket: Socketable?
     
     /**
      Whether or not this server allows port reuse (default: disallowed)
@@ -117,7 +117,8 @@ public class FastCGIServer: Server {
     public func listen(on port: Int) throws {
         self.port = port
         do {
-            let socket = try Socket.create()
+            //FIXME: init socket
+            let socket:Socketable! = nil//try Socket.create()
             self.listenSocket = socket
 
             try socket.listen(on: port, maxBacklogSize: maxPendingConnections, allowPortReuse: self.allowPortReuse)
@@ -211,17 +212,17 @@ public class FastCGIServer: Server {
     }
 
     /// Listen on socket while server is started
-    private func listen(listenSocket: Socket) {
+    private func listen(listenSocket: Socketable) {
         repeat {
             do {
-                let clientSocket = try listenSocket.acceptClientConnection()
+                let clientSocket = try listenSocket.acceptClientConnectionP()
                 Log.debug("Accepted FastCGI connection from: " +
                     "\(clientSocket.remoteHostname):\(clientSocket.remotePort)")
                 handleClientRequest(socket: clientSocket)
             } catch let error {
                 if self.state == .stopped {
-                    if let socketError = error as? Socket.Error {
-                        if socketError.errorCode == Int32(Socket.SOCKET_ERR_ACCEPT_FAILED) {
+                    if let socketError = error as? SocketError {
+                        if socketError.errorCode == Int32(SocketErrorCode.SOCKET_ERR_ACCEPT_FAILED) {
                             Log.info("Server has stopped listening")
                         } else {
                             Log.warning("Socket.Error accepting client connection after server stopped: \(error)")
@@ -245,7 +246,7 @@ public class FastCGIServer: Server {
     /// Handle a new client FastCGI request
     ///
     /// - Parameter clientSocket: the socket used for connecting
-    private func handleClientRequest(socket clientSocket: Socket) {
+    private func handleClientRequest(socket clientSocket: Socketable) {
 
         DispatchQueue.global().async() {
             let request = FastCGIServerRequest(socket: clientSocket)

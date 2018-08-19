@@ -18,6 +18,9 @@ import Foundation
 
 import Socket
 
+typealias BSDSocket = Socket
+typealias SocketErrorCode = SocketError.ErrorConstants
+
 /// Implementations of the `IncomingSocketProcessorCreator` protocol create
 /// an implementation of the `IncomingSocketProcessor` protocol to process
 /// the data from a new incoming socket.
@@ -29,5 +32,5 @@ public protocol IncomingSocketProcessorCreator {
     /// - Parameter socket: The new incoming socket.
     /// - Parameter using: The `ServerDelegate` the HTTPServer is working with, which should be used
     ///                   by the created `IncomingSocketProcessor`, if it works with `ServerDelegate`s.
-    func createIncomingSocketProcessor(socket: Socket, using: ServerDelegate) -> IncomingSocketProcessor
+    func createIncomingSocketProcessor(socket: Socketable, using: ServerDelegate) -> IncomingSocketProcessor
 }

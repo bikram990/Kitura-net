@@ -59,15 +59,15 @@ public class IncomingSocketHandler {
         static let socketReaderQueues = [DispatchQueue(label: "Socket Reader A"), DispatchQueue(label: "Socket Reader B")]
     
         // Note: This var is optional to enable it to be constructed in the init function
-        var readerSource: DispatchSourceRead!
-        var writerSource: DispatchSourceWrite?
+        var readerSource: DispatchSourceProtocol!
+        var writerSource: DispatchSourceProtocol?
     
         private let numberOfSocketReaderQueues = IncomingSocketHandler.socketReaderQueues.count
     
         private let socketReaderQueue: DispatchQueue
     #endif
 
-    let socket: Socket
+    let socket: Socketable
 
     /**
      The `IncomingSocketProcessor` instance that processes data read from the underlying socket.
@@ -106,17 +106,17 @@ public class IncomingSocketHandler {
     private var handleReadInProgress = false
 
     /// The file descriptor of the incoming socket
-    var fileDescriptor: Int32 { return socket.socketfd }
+    var fileDescriptor: Int32? { return socket.socketfd }
     
-    init(socket: Socket, using: IncomingSocketProcessor) {
+    init(socket: Socketable, using: IncomingSocketProcessor) {
         self.socket = socket
         processor = using
-        
+        do {
         #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
             socketReaderQueue = IncomingSocketHandler.socketReaderQueues[Int(socket.socketfd) % numberOfSocketReaderQueues]
-            
-            readerSource = DispatchSource.makeReadSource(fileDescriptor: socket.socketfd,
-                                                         queue: socketReaderQueue)
+            //FIXME: don't unwrap fd forcefully
+        
+            readerSource = try socket.createReadDataSource(onQueue: socketReaderQueue)
         #endif
         
         processor?.handler = self
@@ -128,6 +128,10 @@ public class IncomingSocketHandler {
             readerSource.setCancelHandler(handler: self.handleCancel)
             readerSource.resume()
         #endif
+        }
+        catch {
+            
+        }
     }
     
     /// Read in the available data and hand off to common processing code
@@ -144,6 +148,7 @@ public class IncomingSocketHandler {
 
         // Set handleReadInProgress flag to true before the guard below to avoid another thread
         // invoking close() in between us clearing the guard and setting the flag.
+        //FIXME: don't unwrap fd forcefully
         guard isOpen && socket.socketfd > -1 else {
             preparingToClose = true // flag the function defer clause to cleanup if needed
             return true
@@ -167,8 +172,8 @@ public class IncomingSocketHandler {
                 }
             }
         }
-        catch let error as Socket.Error {
-            if error.errorCode == Int32(Socket.SOCKET_ERR_CONNECTION_RESET) {
+        catch let error as SocketError {
+            if error.errorCode == Int32(SocketErrorCode.SOCKET_ERR_CONNECTION_RESET) {
                 Log.debug("Read from socket (file descriptor \(socket.socketfd)) reset. Error = \(error).")
             } else {
                 Log.error("Read from socket (file descriptor \(socket.socketfd)) failed. Error = \(error).")
@@ -219,7 +224,7 @@ public class IncomingSocketHandler {
      */
     public func handleBufferedReadData() {
         #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
-            if socket.socketfd != Socket.SOCKET_INVALID_DESCRIPTOR {
+            if socket.socketfd != SocketDefaults.SOCKET_INVALID_DESCRIPTOR {
                 socketReaderQueue.sync() { [weak self] in
                     if let strongSelf = self {
                         _ = strongSelf.handleBufferedReadDataHelper()
@@ -260,6 +265,7 @@ public class IncomingSocketHandler {
 
             // Set handleWriteInProgress flag to true before the guard below to avoid another thread
             // invoking close() in between us clearing the guard and setting the flag.
+            //FIXME: don't unwrap fd forcefully
             guard isOpen && socket.socketfd > -1 else {
                 Log.warning("Socket closed with \(writeBuffer.length - writeBufferPosition) bytes still to be written")
                 writeBuffer.length = 0
@@ -294,7 +300,7 @@ public class IncomingSocketHandler {
                 }
             }
             catch let error {
-                if let error = error as? Socket.Error, error.errorCode == Int32(Socket.SOCKET_ERR_CONNECTION_RESET) {
+                if let error = error as? SocketError, error.errorCode == Int32(SocketErrorCode.SOCKET_ERR_CONNECTION_RESET) {
                     Log.debug("Write to socket (file descriptor \(socket.socketfd)) failed. Error = \(error).")
                 } else {
                     Log.error("Write to socket (file descriptor \(socket.socketfd)) failed. Error = \(error).")
@@ -311,14 +317,19 @@ public class IncomingSocketHandler {
     /// Create the writer source
     private func createWriterSource() {
         #if os(OSX) || os(iOS) || os(tvOS) || os(watchOS) || GCD_ASYNCH
-            writerSource = DispatchSource.makeWriteSource(fileDescriptor: socket.socketfd,
-                                                          queue: IncomingSocketHandler.socketWriterQueue)
+        //FIXME: don't unwrap fd forcefully
+        do {
+            writerSource = try socket.createWriteDataSource(onQueue: IncomingSocketHandler.socketWriterQueue)
             
             writerSource!.setEventHandler(handler: self.handleWriteHelper)
             writerSource!.setCancelHandler() {
                 self.writerSource = nil
             }
             writerSource!.resume()
+        }
+        catch {
+            
+        }
         #endif
     }
     
@@ -358,6 +369,7 @@ public class IncomingSocketHandler {
 
         // Set writeInProgress flag to true before the guard below to avoid another thread
         // invoking close() in between us clearing the guard and setting the flag.
+        //FIXME: don't unwrap fd forcefully
         guard isOpen && socket.socketfd > -1 else {
             Log.warning("IncomingSocketHandler write() called after socket \(socket.socketfd) closed")
             preparingToClose = true // flag the function defer clause to cleanup if needed
@@ -387,7 +399,7 @@ public class IncomingSocketHandler {
             }
         }
         catch let error {
-            if let error = error as? Socket.Error, error.errorCode == Int32(Socket.SOCKET_ERR_CONNECTION_RESET) {
+            if let error = error as? SocketError, error.errorCode == Int32(SocketErrorCode.SOCKET_ERR_CONNECTION_RESET) {
                 Log.debug("Write to socket (file descriptor \(socket.socketfd)) failed. Error = \(error).")
             } else {
                 Log.error("Write to socket (file descriptor \(socket.socketfd)) failed. Error = \(error).")
@@ -440,6 +452,7 @@ public class IncomingSocketHandler {
     /// DispatchSource cancel handler
     private func handleCancel() {
         isOpen = false // just in case something besides close() calls handleCancel()
+        //FIXME: don't unwrap fd forcefully
         if socket.socketfd > -1 {
             socket.close()
         }

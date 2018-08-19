@@ -38,7 +38,7 @@ An HTTP server that listens for connections on a socket.
  server.stop()
 ````
 */
-public class HTTPServer: Server {
+public class HTTPServer: NetServiceServer {
 
     public typealias ServerType = HTTPServer
 
@@ -75,7 +75,7 @@ public class HTTPServer: Server {
     public private(set) var state: ServerState = .unknown
 
     /// TCP socket used for listening for new connections
-    private var listenSocket: Socket?
+    private var listenSocket: Socketable?
 
     /**
      Whether or not this server allows port reuse (default: disallowed).
@@ -143,6 +143,41 @@ public class HTTPServer: Server {
         #endif
         _ = HTTPServer.oneTime
     }
+    
+    private var isNetService:Bool = false
+    private var netServiceName:String? = nil
+    private var netServiceType:String? = nil
+    private var netServcieDomain:String? = nil
+    
+    public convenience required init(withName name: String, type: String, domain: String) {
+        self.init()
+        self.isNetService = true
+        self.netServiceName = name
+        self.netServiceType = type
+        self.netServcieDomain = domain
+    }
+    
+    private func createSocket() throws -> Socketable {
+        if self.isNetService {
+            guard let name:String = self.netServiceName else {
+                throw Error.serverSocketFailure(errorCode: Int32(SocketErrorCode.SOCKET_ERR_LISTEN_FAILED), reason: "Name is not set")
+            }
+            guard let type:String = self.netServiceType else {
+                throw Error.serverSocketFailure(errorCode: Int32(SocketErrorCode.SOCKET_ERR_LISTEN_FAILED), reason: "Type is not set")
+            }
+            guard let domain:String = self.netServcieDomain else {
+                throw Error.serverSocketFailure(errorCode: Int32(SocketErrorCode.SOCKET_ERR_LISTEN_FAILED), reason: "Domain is not set")
+            }
+            guard let port:Int = self.port else {
+                throw Error.serverSocketFailure(errorCode: Int32(SocketErrorCode.SOCKET_ERR_LISTEN_FAILED), reason: "Port is not set")
+            }
+            
+            return NetServiceSocket.init(serverWithName: name, type: type, domain: domain, port: port)
+        }
+        else {
+            return try BSDSocket.create()
+        }
+    }
 
     /**
      Listens for connections on a socket.
@@ -157,13 +192,19 @@ public class HTTPServer: Server {
     public func listen(on port: Int) throws {
         self.port = port
         do {
-            let socket = try Socket.create()
+            var socket:Socketable = try self.createSocket()
+            
             self.listenSocket = socket
 
             // If SSL config has been created,
             // create and attach the SSLService delegate to the socket
             if let sslConfig = sslConfig {
-                socket.delegate = try SSLService(usingConfiguration: sslConfig);
+                if self.isNetService {
+                    //FIXME: set the delegate properly
+                }
+                else {
+                    socket.delegate = try SSLService(usingConfiguration: sslConfig);
+                }
             }
 
             try socket.listen(on: port, maxBacklogSize: maxPendingConnections, allowPortReuse: self.allowPortReuse)
@@ -280,10 +321,10 @@ public class HTTPServer: Server {
     }
 
     /// Listen on socket while server is started and pass on to socketManager to handle
-    private func listen(listenSocket: Socket, socketManager: IncomingSocketManager) {
+    private func listen(listenSocket: Socketable, socketManager: IncomingSocketManager) {
         repeat {
             do {
-                let clientSocket = try listenSocket.acceptClientConnection(invokeDelegate: false)
+                let clientSocket = try listenSocket.acceptClientConnectionP(invokeDelegate: false)
                 let clientSource = "\(clientSocket.remoteHostname):\(clientSocket.remotePort)"
                 Log.debug("Accepted HTTP connection from: \(clientSource)")
 				
@@ -298,7 +339,7 @@ public class HTTPServer: Server {
                             strongSelf.handleClientConnection(clientSocket: clientSocket, socketManager: socketManager)
                         } catch let error {
                             if strongSelf.state == .stopped {
-                                if let socketError = error as? Socket.Error {
+                                if let socketError = error as? SocketError {
                                     Log.warning("Socket.Error initializing client connection from \(clientSource) after server stopped: \(socketError)")
                                 } else {
                                     Log.warning("Error initializing client connection from \(clientSource) after server stopped: \(error)")
@@ -314,8 +355,8 @@ public class HTTPServer: Server {
                 }
             } catch let error {
                 if self.state == .stopped {
-                    if let socketError = error as? Socket.Error {
-                        if socketError.errorCode == Int32(Socket.SOCKET_ERR_ACCEPT_FAILED) {
+                    if let socketError = error as? SocketError {
+                        if socketError.errorCode == Int32(SocketErrorCode.SOCKET_ERR_ACCEPT_FAILED) {
                             Log.info("Server has stopped listening")
                         } else {
                             Log.warning("Socket.Error accepting client connection after server stopped: \(error)")
@@ -340,16 +381,16 @@ public class HTTPServer: Server {
     /// This procedure may involve reading bytes from the client (in the case of an SSL handshake),
     /// so must be done on a separate thread to avoid blocking the listener (Kitura issue #1143).
     ///
-    private func initializeClientConnection(clientSocket: Socket, listenSocket: Socket) throws {
+    private func initializeClientConnection(clientSocket: Socketable, listenSocket: Socketable) throws {
         if listenSocket.delegate != nil {
-            try listenSocket.invokeDelegateOnAccept(for: clientSocket)
+            try listenSocket.invokeDelegateOnAcceptP(for: clientSocket)
         }
     }
 
     /// Completes the process of accepting a new client connection. This is either invoked from the
     /// main listen() loop, or in the presence of an SSL delegate, from an async block.
     /// 
-    private func handleClientConnection(clientSocket: Socket, socketManager: IncomingSocketManager) {
+    private func handleClientConnection(clientSocket: Socketable, socketManager: IncomingSocketManager) {
         #if os(Linux)
             let negotiatedProtocol = clientSocket.delegate?.negotiatedAlpnProtocol ?? "http/1.1"
         #else

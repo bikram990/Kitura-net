@@ -99,7 +99,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
     /// Should this socket actually be kept alive?
     var isKeepAlive: Bool { return clientRequestedKeepAlive && keepAliveState.keepAlive() && !parserErrored }
     
-    let socket: Socket
+    let socket: Socketable
     
     /// An enum for internal state
     enum State {
@@ -112,7 +112,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
     /// Location in the buffer to start parsing from
     private var parseStartingFrom = 0
     
-    init(socket: Socket, using: ServerDelegate, keepalive: KeepAliveState) {
+    init(socket: Socketable, using: ServerDelegate, keepalive: KeepAliveState) {
         delegate = using
         self.httpParser = HTTPParser(isRequest: true)
         self.socket = socket
@@ -345,7 +345,7 @@ public class IncomingHTTPSocketProcessor: IncomingSocketProcessor {
 class HTTPIncomingSocketProcessorCreator: IncomingSocketProcessorCreator {
     public let name = "http/1.1"
     
-    public func createIncomingSocketProcessor(socket: Socket, using: ServerDelegate) -> IncomingSocketProcessor {
+    public func createIncomingSocketProcessor(socket: Socketable, using: ServerDelegate) -> IncomingSocketProcessor {
         return IncomingHTTPSocketProcessor(socket: socket, using: using, keepalive: .unlimited)
     }
     
@@ -355,7 +355,7 @@ class HTTPIncomingSocketProcessorCreator: IncomingSocketProcessorCreator {
     /// - Parameter using: The `ServerDelegate` the HTTPServer is working with, which should be used
     ///                   by the created `IncomingSocketProcessor`, if it works with `ServerDelegate`s.
     /// - Parameter keepalive: The `KeepAliveState` for this connection (limited, unlimited or disabled)
-    func createIncomingSocketProcessor(socket: Socket, using: ServerDelegate, keepalive: KeepAliveState) -> IncomingSocketProcessor {
+    func createIncomingSocketProcessor(socket: Socketable, using: ServerDelegate, keepalive: KeepAliveState) -> IncomingSocketProcessor {
         return IncomingHTTPSocketProcessor(socket: socket, using: using, keepalive: keepalive)
     }
 }

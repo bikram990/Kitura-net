@@ -141,7 +141,7 @@ public class IncomingSocketManager  {
      processor?.handler = handler
      ````
      */
-    public func handle(socket: Socket, processor: IncomingSocketProcessor) {
+    public func handle(socket: Socketable, processor: IncomingSocketProcessor) {
         guard !stopped else {
             Log.warning("Cannot handle socket as socket manager has been stopped")
             return
