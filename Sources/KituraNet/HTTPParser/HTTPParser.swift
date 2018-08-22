@@ -19,46 +19,46 @@ import Foundation
 
 // MARK: HTTPParser
 
-class HTTPParser {
+public class HTTPParser {
 
     /// HTTP Method of the incoming message.
-    var method: String { return parseResults.method }
+    public var method: String { return parseResults.method }
     
     /// The path specified in an incoming message
-    var url: NSData { return parseResults.url }
+    public var url: NSData { return parseResults.url }
     
     /// The path specified in an incoming message as a String
-    var urlString: String { return parseResults.urlString }
+    public var urlString: String { return parseResults.urlString }
     
     /// Major version of HTTP of the request
-    var httpVersionMajor: UInt16 { return parseResults.httpVersionMajor }
+    public var httpVersionMajor: UInt16 { return parseResults.httpVersionMajor }
     
     /// Minor version of HTTP of the request
-    var httpVersionMinor: UInt16 { return parseResults.httpVersionMinor }
+    public var httpVersionMinor: UInt16 { return parseResults.httpVersionMinor }
     
     /// Set of HTTP headers of the incoming message.
-    var headers: HeadersContainer { return parseResults.headers }
+    public var headers: HeadersContainer { return parseResults.headers }
     
     /// Chunk of body read in by the http_parser
-    var bodyChunk: BufferList { return parseResults.bodyChunk }
+    public var bodyChunk: BufferList { return parseResults.bodyChunk }
     
     /// Parsing of message completed
-    var completed: Bool { return parseResults.completed }
+    public var completed: Bool { return parseResults.completed }
     
     /// A Handle to the HTTPParser C-library
-    var parser: http_parser
+    public var parser: http_parser
 
     /// Settings used for HTTPParser
-    var settings: http_parser_settings
+    public var settings: http_parser_settings
 
     /// Parsing a request? (or a response)
-    var isRequest = true
+    public var isRequest = true
     
     /// Results of the parsing of an HTTP incoming message
     private var parseResults = ParseResults()
     
     /// Whether to upgrade the HTTP connection to HTTP 1.1
-    var upgrade = 1
+    public var upgrade = 1
 
     /// Initializes a HTTPParser instance
     ///
@@ -66,7 +66,7 @@ class HTTPParser {
     /// - Parameter skipBody: whether parser should skip body content (ie when parsing the response to a HEAD request)
     ///
     /// - Returns: an HTTPParser instance
-    init(isRequest: Bool, skipBody: Bool = false) {
+    public init(isRequest: Bool, skipBody: Bool = false) {
 
         self.isRequest = isRequest
 
@@ -139,25 +139,25 @@ class HTTPParser {
     /// - Parameter length: length of the byte array
     ///
     /// - Returns: ???
-    func execute (_ data: UnsafePointer<Int8>, length: Int) -> (Int, UInt32) {
+    public func execute (_ data: UnsafePointer<Int8>, length: Int) -> (Int, UInt32) {
         let nparsed = http_parser_execute(&parser, &settings, data, length)
         let upgrade = get_upgrade_value(&parser)
         return (nparsed, upgrade)
     }    
 
     /// Reset the http_parser context structure.
-    func reset() {
+    public func reset() {
         http_parser_init(&parser, isRequest ? HTTP_REQUEST : HTTP_RESPONSE)
         parseResults.reset()
     }
 
     /// Did the request include a Connection: keep-alive header?
-    func isKeepAlive() -> Bool {
+    public func isKeepAlive() -> Bool {
         return isRequest && http_should_keep_alive(&parser) == 1
     }
 
     /// Get the HTTP status code on responses
-    var statusCode: HTTPStatusCode {
+    public var statusCode: HTTPStatusCode {
         return isRequest ? .unknown : HTTPStatusCode(rawValue: Int(parser.status_code)) ?? .unknown
     }
 }
